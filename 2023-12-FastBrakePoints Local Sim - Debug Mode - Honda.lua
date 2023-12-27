@@ -32,7 +32,7 @@ end
 
 -- Initializing flags
 at_corner = false --  flag variable - self explainitory
--- brake_zone_distance = 1000 -- The distance from the corner where we will be looking for braking.  Move into code to save space 
+brake_zone_distance = 300 -- The distance from the corner where we will be looking for braking. 
 in_brake_zone = false -- used to determine if we are in the braking zone.
 brake_detected = false -- used to determine if the brakes have been pushed.
 passed_brake_point = false
@@ -132,8 +132,16 @@ function check_if_at_corner()--determines what corner we are driving towards
 end
 
 function update_brake_point() --updates braking points if conditions are met 
-   --in_brake_zone = distance_to_target_corner <= brake_zone_distance -- commented out and replaced with number to save memory 
-      in_brake_zone = distance_to_target_corner <= 1000
+    in_brake_zone = distance_to_target_corner <= brake_zone_distance 
+      --in_brake_zone = distance_to_target_corner <= 1000
+      
+    if in_brake_zone then
+    sxSetLed(8,1,0,255,0,0)
+  else
+    sxSetLed(8,1,0,0,0,0)
+  end
+    
+    End
 
    if in_brake_zone and brake_detected and not brake_recorded[target_corner] then
       brake_point_current_lap_lat[target_corner] = current_lat
@@ -224,6 +232,9 @@ function led_all_blue()
   sxSetLed(0,7,0,0,255,0)
   end
 
+
+
+
 function getColorBasedOnTrackMarker(marker)  -- the lower LEDs change color between green and yellow depending on how close we are
     if marker == 1 then
         return 255, 255, 0  -- Yellow for track_marker 1
@@ -245,7 +256,12 @@ function check_brakes() -- this function determines if the brakes have currently
  -- Use this section for the "simulation" (push button switch into GPIO that simulates brakes)  
  
  brakepressure = getGpio(0) or 0  -- look for a button press (simulates pressing the brake)  
-  brake_detected = brakepressure < 1  -- Simulated value after button press 
+  brake_detected = brakepressure >= 1  -- Simulated value after button press
+  if brake_detected then
+    sxSetLed(7,1,255,0,0,0)
+  else
+    sxSetLed(7,1,0,0,0,0)
+  end
 
 --[[
   -- Use this section for racing at the track  

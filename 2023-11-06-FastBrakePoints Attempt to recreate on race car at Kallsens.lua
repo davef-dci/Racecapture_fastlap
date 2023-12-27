@@ -22,7 +22,7 @@ target_corner = 1    -- what is our next corner we are driving for
 best_lap_time = 600 -- need to figure out what to set this to?  decimal minutes/seconds?
 distance_to_target_corner = 2000 -- variable to hold the distance we are from the upcoming target corner (not the braking point)
 distance_to_fastest_brake_point = 2000 -- a variable to hold how far we are from the brake point on our fastest lap
-num_corners = 3 -- how many corners we are going to have for this track
+num_corners = 2 -- how many corners we are going to have for this track
 track_marker = 4 -- variable uses to store the track marker number to be displayed on the ShiftX3.  Will step from 3 to 1 depending on how far away you are
 track_marker_quarters = 0  -- a variable used to control the discrete LED displaces. The display indicated "quarter" markers (four indications every marker) 
 prev_distances = {} -- stores previous 5 distances from GPS to compensate for GPS jitters 
@@ -58,7 +58,7 @@ for i = 1, num_corners , 1  do
 end
 
 -- These are GPS Coords for software "simulated" track used only for debug.  These are around my house.
-
+--[[
 corner_lat[1]= 43.046943
 corner_lon[1]=-89.447696
 
@@ -68,7 +68,9 @@ corner_lon[2]=-89.447685
 corner_lat[3]=  43.044876
 corner_lon[3]=-89.444664
 
---[[
+
+
+
 --  GPS Coordinates for the apexs at Road America
 
 -- GPS Coordinates for road america 
@@ -104,7 +106,15 @@ corner_lon[3] =-87.997522
 --7 Corner 14
 --corner_lat[8] = 43.804053
 --corner_lon[8] =-87.990036
+
 --]]
+
+
+corner_lat[1]= 42.910143
+corner_lon[1]=-89.130865
+
+corner_lat[2]= 42.910143
+corner_lon[2]= -89.131857
 
 function check_if_at_corner()--determines what corner we are driving towards
    for i = 1, num_corners, 1 do 
@@ -244,14 +254,12 @@ function check_brakes() -- this function determines if the brakes have currently
  
  -- Use this section for the "simulation" (push button switch into GPIO that simulates brakes)  
  
- brakepressure = getGpio(0) or 0  -- look for a button press (simulates pressing the brake)  
+ --[[brakepressure = getGpio(0) or 0  -- look for a button press (simulates pressing the brake)  
   brake_detected = brakepressure < 1  -- Simulated value after button press 
-
---[[
+  --]]
   -- Use this section for racing at the track  
   brake_pressure = getChannel("BRAKES") -- comment out for simulation
   brake_detected = brake_pressure > 1100  -- measured value of actual brake pressure during testing  
---]]
 
 end
 
