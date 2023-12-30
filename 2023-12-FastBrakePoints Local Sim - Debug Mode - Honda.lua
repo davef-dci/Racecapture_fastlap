@@ -6,6 +6,8 @@
 -- V12 10/9 - modified to clamp the track marker between 4 and 0 to prevent briefly displaying a 5 at corners.
 -- V15 implemented revised brake based on testing at Kallsen 
 -- V16 Prep for Road America - V15 fixed issue with garbage collection 
+-- V17 Moved to Honda for debug.  Eliminated brake pressure as the trigger and changed to a wired brake light switch.  Added misc. Debug LEDs  
+--     Moved Setting LEDs out of routines and into code - makes code harder to follow but saves space?  
 
 setTickRate(10) -- set the refresh rate at 10hz.
 sxSetConfig(0,0,1)  -- ShiftX3 Config - normal orientation, 100% brightness, CAN 2
@@ -26,7 +28,7 @@ num_corners = 3 -- how many corners we are going to have for this track
 track_marker = 4 -- variable uses to store the track marker number to be displayed on the ShiftX3.  Will step from 3 to 1 depending on how far away you are
 track_marker_quarters = 0  -- a variable used to control the discrete LED displaces. The display indicated "quarter" markers (four indications every marker) 
 prev_distances = {} -- stores previous 5 distances from GPS to compensate for GPS jitters 
-for i = 1, 3 do
+for i = 1, 5 do
     table.insert(prev_distances, 0) -- initialize 
 end
 
@@ -135,14 +137,12 @@ function update_brake_point() --updates braking points if conditions are met
     in_brake_zone = distance_to_target_corner <= brake_zone_distance 
       --in_brake_zone = distance_to_target_corner <= 1000
       
-    if in_brake_zone then
-    sxSetLed(8,1,0,255,0,0)
+  if in_brake_zone then
+    sxSetLed(8,1,0,255,0,0) -- turn on debugging LED when we are in the brake zone.  Braking after this point will trigger a brake point capture! 
   else
     sxSetLed(8,1,0,0,0,0)
   end
     
-    End
-
    if in_brake_zone and brake_detected and not brake_recorded[target_corner] then
       brake_point_current_lap_lat[target_corner] = current_lat
       brake_point_current_lap_lon[target_corner] = current_lon
@@ -154,10 +154,8 @@ function update_display() -- initiates the ShiftX display based on distance to b
   local brake_warn = 300  -- this is how far away from tbe brake point we'll begin counting down.  Set to smaller number for local testing around my house 
    -- compute the distance between our current location and the location where the brakes were pressed on the fastest lap (for the current corner) 
    distance_to_fastest_brake_point = distance(brake_point_fastest_lap_lat[target_corner], brake_point_fastest_lap_lon[target_corner], current_lat, current_lon)
-
    table.insert(prev_distances, distance_to_fastest_brake_point) -- save the last points - add new value to the end
    table.remove(prev_distances, 1) -- remove the oldest value from the start
-
    passed_brake_point = false  -- initialize the flag variable that tracks if we've passed the brake point
    
    if distance_to_fastest_brake_point >= prev_distances[1] then   --Further away than the previous distance - moving AWAY from the fastest brake point 
@@ -166,7 +164,6 @@ function update_display() -- initiates the ShiftX display based on distance to b
 
   if distance_to_fastest_brake_point > brake_warn then
     track_marker = 0
-    led_off() -- is this working correctly?  Need to verify. Not sure how I want the LEDs to behave  
   end
   
 -- set the distance to the brake point... 
@@ -175,76 +172,50 @@ function update_display() -- initiates the ShiftX display based on distance to b
       track_marker_quarters = (distance_to_fastest_brake_point / brake_warn *4) - (track_marker - 1) -- determing which "quarter" to display - Lower LEDs
     else
         track_marker = 0  -- if we have passed the brake point or we are too far away then... 
-        led_all_blue()
+        sxSetLed(0,7,0,0,255,0) -- Set all LEDs blue
     end
    
      if track_marker > 0 and track_marker < 4 then -- count down from 3 to 1  
-        sxSetDisplay(0, track_marker)
-        -- turn on the lower LEDs  
+        sxSetDisplay(0, track_marker) -- Set the 8 segment display 
+
+-- Following section lights LEDs based on how far we are between the count down numbers  
         if track_marker_quarters < .25 then
-            led_state4()
+            --ooo*ooo
+            local r, g, b = getColorBasedOnTrackMarker(track_marker)
+            sxSetLed(0,3,0,0,0,0)
+            sxSetLed(3,1,r,g,b,0)
+            sxSetLed(4,3,0,0,0,0)
         elseif track_marker_quarters <= .5 then 
-            led_state3()
+            --oo***oo
+            local r, g, b = getColorBasedOnTrackMarker(track_marker)
+            sxSetLed(0,2,0,0,0,0)
+            sxSetLed(2,3,r,g,b,0)
+            sxSetLed(5,2,0,0,0,0)
         elseif track_marker_quarters <= .75 then 
-            led_state2()
+            -- o****o
+            local r, g, b = getColorBasedOnTrackMarker(track_marker)
+            sxSetLed(0,1,0,0,0,0)
+            sxSetLed(1,5,r,g,b,0)
+            sxSetLed(6,1,0,0,0,0)
         else 
-            led_state1()
+            -- *********** (all on) 
+            local r, g, b = getColorBasedOnTrackMarker(track_marker)
+            sxSetLed(0,7,r,g,b,0)
         end
       else 
           sxSetDisplay(0, "")
       end
 end
 
--- Lower LED states
---* = on
---o = off
-function led_state1()  -- *********** (all on)  
- local r, g, b = getColorBasedOnTrackMarker(track_marker)
- sxSetLed(0,7,r,g,b,0)
-end
-
-function led_state2() -- o****o
-  local r, g, b = getColorBasedOnTrackMarker(track_marker)
-  sxSetLed(0,1,0,0,0,0)
-  sxSetLed(1,5,r,g,b,0)
-  sxSetLed(6,1,0,0,0,0)
-end
-
-function led_state3() --oo***oo
-  local r, g, b = getColorBasedOnTrackMarker(track_marker)
-  sxSetLed(0,2,0,0,0,0)
-  sxSetLed(2,3,r,g,b,0)
-  sxSetLed(5,2,0,0,0,0)
-end
-
-function led_state4() --ooo*ooo
-  local r, g, b = getColorBasedOnTrackMarker(track_marker)
-  sxSetLed(0,3,0,0,0,0)
-  sxSetLed(3,1,r,g,b,0)
-  sxSetLed(4,3,0,0,0,0)
-end
-
-function led_off()
-  sxSetLed(0,7,0,0,0,0)
-end
-
-function led_all_blue()
-  sxSetLed(0,7,0,0,255,0)
-  end
-
-
-
-
-function getColorBasedOnTrackMarker(marker)  -- the lower LEDs change color between green and yellow depending on how close we are
+function getColorBasedOnTrackMarker(marker)  -- the lower LEDs change color between green and orange depending on how close we are
     if marker == 1 then
-        return 255, 255, 0  -- Yellow for track_marker 1
+        return 255, 165, 0  -- Orange for track_marker 1
     elseif marker >= 2 and marker <= 4 then
         return 0, 255, 0  -- Green for track_marker 2 to 4
     else
         return 0, 0, 0  -- Turn off LEDs for any other value
     end
 end
-
 
 function distance(lat1,lon1,lat2,lon2) -- math funtion determines the distances between two GPS points using the Haversine formula - not perfect but close enough.
    result = (math.sqrt(((math.rad(lon2)-math.rad(lon1))*math.cos((math.rad(lat1)+math.rad(lat2))/2))^2 + (math.rad(lat2) - math.rad(lat1))^2))*6371e3*3.28084  -- note the 3.28 converst from meters to feet.
@@ -253,22 +224,20 @@ end
 
 function check_brakes() -- this function determines if the brakes have currently been pressed.
  
- -- Use this section for the "simulation" (push button switch into GPIO that simulates brakes)  
- 
- brakepressure = getGpio(0) or 0  -- look for a button press (simulates pressing the brake)  
-  brake_detected = brakepressure >= 1  -- Simulated value after button press
+ -- Use this section for the "simulation" (push button switch into GPIO that simulates brakes) OR if using a wired brake light switch 
+ brakepressure = getGpio(0) or 0  -- Now tied to brake light switch    
+  brake_detected = brakepressure >= 1  -- Check to see if brakes have been pressed
   if brake_detected then
-    sxSetLed(7,1,255,0,0,0)
+    sxSetLed(7,1,255,0,0,0) -- For debug purposes - if brakes have been pressed light up the two outside LEDs 
   else
-    sxSetLed(7,1,0,0,0,0)
+    sxSetLed(7,1,0,0,0,0) -- If no brakes, turn off the outside LEDs  
   end
 
 --[[
-  -- Use this section for racing at the track  
+  -- Use this section if getting brakes from a pressure sensor.  
   brake_pressure = getChannel("BRAKES") -- comment out for simulation
   brake_detected = brake_pressure > 1100  -- measured value of actual brake pressure during testing  
 --]]
-
 end
 
 function check_if_passed_start() -- monitor the lap count to see if we passed start. If so, check for fastest lap and update if so
@@ -283,14 +252,15 @@ function check_if_passed_start() -- monitor the lap count to see if we passed st
             best_lap_time = getLapTime()
             -- Copy brake points from current lap to fastest lap
             for i = 1, num_corners, 1 do
+              if (brake_point_current_lap_lat[i] ~= 0 or brake_point_current_lap_lat[i] ~= nil) and  (brake_point_current_lap_lon[i] ~= 0 or brake_point_current_lap_lon[i] ~= nil) then 
                 brake_point_fastest_lap_lat[i] = brake_point_current_lap_lat[i]
                 brake_point_fastest_lap_lon[i] = brake_point_current_lap_lon[i]
-                --println('fl = '..tostring(new_lap)..' # '.. tostring(i)..' Lat '..tostring(brake_point_fastest_lap_lat[i])..' Lon '..tostring(brake_point_fastest_lap_lon[i]))
+              end
             end
         end
         current_lap = new_lap -- Update the current lap count
 
-        -- Re-zero lat and lon brake points for the current lap
+        -- Re-zero lat and lon brake points for the current lap -- 
         for i = 1, num_corners, 1 do
             brake_point_current_lap_lat[i] = 0
             brake_point_current_lap_lon[i] = 0
@@ -319,11 +289,4 @@ function onTick() -- main loop
    println("bp fast Lap corner lat / lon = " .. brake_point_fastest_lap_lat[m] .."  ".. brake_point_fastest_lap_lon[m])
   end
 
-  --[[
-  if getGpsSpeed() > 10 then
-    startLogging()
-  else
-    stopLogging()
-  end
-  --]]
 end
