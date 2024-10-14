@@ -122,8 +122,8 @@ corner_lon[1] = -87.989737
 --corner_lon[2] = -87.995286
 
 --3 - Corner 5
-corner_lat[3] = 43.80177	
-corner_lon[3] = -87.992557
+corner_lat[2] = 43.80177	
+corner_lon[2] = -87.992557
 
 
 --Corner 6
